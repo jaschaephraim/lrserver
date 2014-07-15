@@ -87,7 +87,7 @@ func TestReject(t *testing.T) {
 	websocket.JSON.Send(ws, struct{}{})
 	err := handshake(ws, t)
 	if err == nil {
-		t.Fatal("unsuccessful reject")
+		t.Fatal(err)
 	}
 }
 
@@ -95,7 +95,7 @@ func connect(t *testing.T) *websocket.Conn {
 	go lrserver.ListenAndServe()
 	ws, err := websocket.Dial("ws://localhost:35729/livereload", "", "http://localhost/")
 	if err != nil {
-		t.Fatal("unable to establish connection")
+		t.Fatal(err)
 	}
 	return ws
 }
