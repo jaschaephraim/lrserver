@@ -6,6 +6,7 @@ import (
 	"github.com/jaschaephraim/lrserver"
 	"reflect"
 	"testing"
+	"time"
 )
 
 var clientHello = struct {
@@ -37,12 +38,27 @@ type serverAlert struct {
 	Message string `json:"message"`
 }
 
+func TestListenAndServe(t *testing.T) {
+	connect(t)
+	closeServer(t)
+}
+
+func TestClose(t *testing.T) {
+	connect(t)
+	closeServer(t)
+	_, err := dial()
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
 func TestHandshake(t *testing.T) {
 	ws := connect(t)
 	err := handshake(ws, t)
 	if err != nil {
 		t.Fatal(err)
 	}
+	closeServer(t)
 }
 
 func TestReload(t *testing.T) {
@@ -55,6 +71,7 @@ func TestReload(t *testing.T) {
 
 	sr := new(serverReload)
 	websocket.JSON.Receive(ws, sr)
+	closeServer(t)
 	if !reflect.DeepEqual(*sr, serverReload{
 		"reload",
 		"index.html",
@@ -74,6 +91,7 @@ func TestAlert(t *testing.T) {
 
 	sa := new(serverAlert)
 	websocket.JSON.Receive(ws, sa)
+	closeServer(t)
 	if !reflect.DeepEqual(*sa, serverAlert{
 		"alert",
 		"danger danger",
@@ -89,15 +107,36 @@ func TestReject(t *testing.T) {
 	if err == nil {
 		t.Fatal(err)
 	}
+	closeServer(t)
 }
 
 func connect(t *testing.T) *websocket.Conn {
-	go lrserver.ListenAndServe()
-	ws, err := websocket.Dial("ws://localhost:35729/livereload", "", "http://localhost/")
+	go func() {
+		err := lrserver.ListenAndServe()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+	ws, err := dial()
+	for i := 0; i < 3 && err != nil; i++ {
+		time.Sleep(time.Millisecond * 500)
+		ws, err = dial()
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
 	return ws
+}
+
+func dial() (*websocket.Conn, error) {
+	return websocket.Dial("ws://localhost:35729/livereload", "", "http://localhost/")
+}
+
+func closeServer(t *testing.T) {
+	err := lrserver.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func handshake(ws *websocket.Conn, t *testing.T) error {
