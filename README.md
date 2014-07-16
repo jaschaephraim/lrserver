@@ -16,7 +16,7 @@ File watching must be implemented by your own application, and reload/alert
 requests sent programmatically by calling `lrserver.Reload(file string)` and
 `lrserver.Alert(msg string)`.
 
-## Usage ##
+## Usage [![GoDoc](https://godoc.org/github.com/jaschaephraim/lrserver?status.svg)](http://godoc.org/github.com/jaschaephraim/lrserver) ##
 
 ### Functions ###
 
