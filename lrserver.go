@@ -24,6 +24,7 @@ import (
 	"code.google.com/p/go.net/websocket"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 )
@@ -35,14 +36,56 @@ var (
 	Addr    = ":35729"
 	LiveCSS = true
 
-	rlFile  = ""
-	rlAlert = ""
-	logger  = log.New(os.Stdout, "[lrserver] ", 0)
+	rlFile  string
+	rlAlert string
+
+	logger = log.New(os.Stdout, "[lrserver] ", 0)
+	srv    = &server{
+		mux: http.NewServeMux(),
+	}
 )
 
+type server struct {
+	server   *http.Server
+	mux      *http.ServeMux
+	listener *net.Listener
+	state    http.ConnState
+
+	serve func() error
+	close func() error
+}
+
 func init() {
+	// Init server
+	srv.server = &http.Server{
+		Handler: srv.mux,
+		ConnState: func(c net.Conn, cs http.ConnState) {
+			srv.state = cs
+		},
+	}
+	srv.serve = func() error {
+		lsn, err := net.Listen("tcp", Addr)
+		if err != nil {
+			return err
+		}
+		srv.listener = &lsn
+		err = srv.server.Serve(*srv.listener)
+		if err != nil && srv.state != http.StateClosed && srv.state != http.StateHijacked {
+			return err
+		}
+		return nil
+	}
+	srv.close = func() error {
+		err := (*srv.listener).Close()
+		if err != nil {
+			return err
+		}
+		srv.listener = nil
+		return nil
+	}
+
 	// JS request handler
-	http.HandleFunc("/livereload.js", func(rw http.ResponseWriter, req *http.Request) {
+	srv.mux.HandleFunc("/livereload.js", func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("Content-Type", "application/javascript")
 		_, err := rw.Write([]byte(JS))
 		if err != nil {
@@ -52,7 +95,7 @@ func init() {
 	})
 
 	// WS handler
-	http.Handle("/livereload", websocket.Handler(func(ws *websocket.Conn) {
+	srv.mux.Handle("/livereload", websocket.Handler(func(ws *websocket.Conn) {
 		ch := new(clientHello)
 		err := websocket.JSON.Receive(ws, ch)
 		if err != nil {
@@ -104,7 +147,13 @@ func init() {
 // ListenAndServe starts the server at lrserver.Addr.
 func ListenAndServe() error {
 	logger.Println("listening on " + Addr)
-	return http.ListenAndServe(Addr, nil)
+	return srv.serve()
+}
+
+// Close ungracefully stops the currently running server.
+func Close() error {
+	logger.Println("stopping server")
+	return srv.close()
 }
 
 // Reload sends a reload request to the next incoming WebSocket connection.

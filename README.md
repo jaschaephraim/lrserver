@@ -27,6 +27,12 @@ func ListenAndServe() error
 ListenAndServe starts the server at `lrserver.Addr`.
 
 ```go
+func Close() error
+```
+
+Close ungracefully stops the currently running server.
+
+```go
 func Reload(file string)
 ```
 
