@@ -1,4 +1,4 @@
-# `lrserver`: Simple LiveReload server for Go #
+# `lrserver` LiveReload server for Go #
 
 Golang package that implements a simple LiveReload server as described in the [LiveReload protocol](http://feedback.livereload.com/knowledgebase/articles/86174-livereload-protocol).
 
