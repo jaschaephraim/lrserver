@@ -36,13 +36,13 @@ Close ungracefully stops the currently running server.
 func Reload(file string)
 ```
 
-Reload sends a reload request to the next incoming WebSocket connection.
+Reload sends a reload request on the next client connection.
 
 ```go
 func Alert(msg string)
 ```
 
-Alert sends an alert request to the next incoming WebSocket connection.
+Alert sends an alert request on the next client connection.
 
 ### Variables ###
 

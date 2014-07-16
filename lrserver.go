@@ -156,13 +156,13 @@ func Close() error {
 	return srv.close()
 }
 
-// Reload sends a reload request to the next incoming WebSocket connection.
+// Reload sends a reload request on the next client connection.
 func Reload(file string) {
 	logger.Println("requesting reload: " + file)
 	rlFile = file
 }
 
-// Alert sends an alert request to the next incoming WebSocket connection.
+// Alert sends an alert request on the next client connection.
 func Alert(msg string) {
 	logger.Println("requesting alert: " + msg)
 	rlAlert = msg
