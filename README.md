@@ -54,12 +54,11 @@ var (
     // LiveCSS tells LiveReload whether you want it to update CSS without reloading
     LiveCSS = true
 
-    // JS is initialized to contain LiveReload's client JavaScript (https://github.com/livereload/livereload-js)
+    // JS is initialized to contain LiveReload's client JavaScript
+    // (https://github.com/livereload/livereload-js)
     JS string
 )
 ```
-
-JS is initialized to contain LiveReload's client JavaScript (https://github.com/livereload/livereload-js)
 
 ## Example ##
 
