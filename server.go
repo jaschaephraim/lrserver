@@ -1,0 +1,67 @@
+package lrserver
+
+import (
+	"code.google.com/p/go.net/websocket"
+	"net"
+	"net/http"
+)
+
+type server struct {
+	server     *http.Server
+	listener   *net.Listener
+	connection *connection
+
+	closing bool
+}
+
+func newServer() *server {
+	s := server{
+		server: &http.Server{
+			Addr: Addr,
+		},
+	}
+	return &s
+}
+
+func (s *server) listenAndServe() error {
+	// Create listener
+	l, err := net.Listen("tcp", Addr)
+	if err != nil {
+		return err
+	}
+	s.listener = &l
+
+	// Start server
+	err = s.server.Serve(*s.listener)
+	if err != nil && !s.closing {
+		return err
+	}
+
+	s.closing = false
+	return nil
+}
+
+func (s *server) close() error {
+	s.closing = true
+
+	err := (*s.listener).Close()
+	if err != nil {
+		return err
+	}
+
+	s.listener = nil
+	return nil
+}
+
+func (s *server) setConnection(ws *websocket.Conn) {
+	s.connection = newConnection(ws)
+	s.connection.start()
+}
+
+func (s *server) sendReload(file string) {
+	*s.connection.reloadChan <- file
+}
+
+func (s *server) sendAlert(msg string) {
+	*s.connection.alertChan <- msg
+}

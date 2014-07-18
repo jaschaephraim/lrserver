@@ -4,6 +4,7 @@ import (
 	"code.google.com/p/go.net/websocket"
 	"errors"
 	"github.com/jaschaephraim/lrserver"
+	"net/http"
 	"reflect"
 	"testing"
 	"time"
@@ -40,15 +41,31 @@ type serverAlert struct {
 
 func TestListenAndServe(t *testing.T) {
 	connect(t)
-	closeServer(t)
+	lrserver.Close()
 }
 
 func TestClose(t *testing.T) {
 	connect(t)
-	closeServer(t)
+	lrserver.Close()
 	_, err := dial()
 	if err == nil {
+		t.Fatal("unsuccessful closing of server")
+	}
+}
+
+func TestJS(t *testing.T) {
+	start(t)
+	resp, err := http.Get("http://localhost:35729/livereload.js")
+	if err != nil {
 		t.Fatal(err)
+	}
+	lrserver.Close()
+	bytes := make([]byte, 65536)
+	i, _ := resp.Body.Read(bytes)
+	js := string(bytes[:i])
+
+	if js != lrserver.JS {
+		t.Fatal("unsuccessful serving of javascript")
 	}
 }
 
@@ -58,20 +75,21 @@ func TestHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	closeServer(t)
+	lrserver.Close()
 }
 
 func TestReload(t *testing.T) {
 	ws := connect(t)
-	lrserver.Reload("index.html")
 	err := handshake(ws, t)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	lrserver.Reload("index.html")
 	sr := new(serverReload)
 	websocket.JSON.Receive(ws, sr)
-	closeServer(t)
+	lrserver.Close()
+
 	if !reflect.DeepEqual(*sr, serverReload{
 		"reload",
 		"index.html",
@@ -83,15 +101,16 @@ func TestReload(t *testing.T) {
 
 func TestAlert(t *testing.T) {
 	ws := connect(t)
-	lrserver.Alert("danger danger")
 	err := handshake(ws, t)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	lrserver.Alert("danger danger")
 	sa := new(serverAlert)
 	websocket.JSON.Receive(ws, sa)
-	closeServer(t)
+	lrserver.Close()
+
 	if !reflect.DeepEqual(*sa, serverAlert{
 		"alert",
 		"danger danger",
@@ -102,21 +121,16 @@ func TestAlert(t *testing.T) {
 
 func TestReject(t *testing.T) {
 	ws := connect(t)
-	websocket.JSON.Send(ws, struct{}{})
+	websocket.JSON.Send(ws, struct{ string }{"bingo"})
 	err := handshake(ws, t)
 	if err == nil {
-		t.Fatal(err)
+		t.Fatal("unsuccessful reject")
 	}
-	closeServer(t)
+	lrserver.Close()
 }
 
 func connect(t *testing.T) *websocket.Conn {
-	go func() {
-		err := lrserver.ListenAndServe()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
+	start(t)
 	ws, err := dial()
 	for i := 0; i < 3 && err != nil; i++ {
 		time.Sleep(time.Millisecond * 500)
@@ -128,15 +142,17 @@ func connect(t *testing.T) *websocket.Conn {
 	return ws
 }
 
-func dial() (*websocket.Conn, error) {
-	return websocket.Dial("ws://localhost:35729/livereload", "", "http://localhost/")
+func start(t *testing.T) {
+	go func() {
+		err := lrserver.ListenAndServe()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 }
 
-func closeServer(t *testing.T) {
-	err := lrserver.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
+func dial() (*websocket.Conn, error) {
+	return websocket.Dial("ws://localhost:35729/livereload", "", "http://localhost/")
 }
 
 func handshake(ws *websocket.Conn, t *testing.T) error {

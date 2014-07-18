@@ -36,24 +36,27 @@ Close ungracefully stops the currently running server.
 func Reload(file string)
 ```
 
-Reload sends a reload request on the next client connection.
+Reload sends a reload request to connected client.
 
 ```go
 func Alert(msg string)
 ```
 
-Alert sends an alert request on the next client connection.
+Alert sends an alert request to connected client.
 
 ### Variables ###
 
 ```go
 var (
-    Addr    = ":35729"
+    // Addr is typically just the port number where the LiveReload server can be reached.
+    Addr = ":35729"
+
+    // LiveCSS tells LiveReload whether you want it to update CSS without reloading
     LiveCSS = true
+
+    // JS is initialized to contain LiveReload's client JavaScript (https://github.com/livereload/livereload-js)
+    JS string
 )
-```
-```go
-var JS string
 ```
 
 JS is initialized to contain LiveReload's client JavaScript (https://github.com/livereload/livereload-js)
