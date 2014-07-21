@@ -39,14 +39,26 @@ type serverAlert struct {
 	Message string `json:"message"`
 }
 
+func TestDisconnectedClose(t *testing.T) {
+	lrserver.Close()
+}
+
+func TestDisconnectedReload(t *testing.T) {
+	lrserver.Reload("")
+}
+
+func TestDisconnectedAlert(t *testing.T) {
+	lrserver.Alert("")
+}
+
 func TestListenAndServe(t *testing.T) {
 	connect(t)
-	lrserver.Close()
+	close(t)
 }
 
 func TestClose(t *testing.T) {
 	connect(t)
-	lrserver.Close()
+	close(t)
 	_, err := dial()
 	if err == nil {
 		t.Fatal("unsuccessful closing of server")
@@ -59,7 +71,7 @@ func TestJS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lrserver.Close()
+	close(t)
 	bytes := make([]byte, 65536)
 	i, _ := resp.Body.Read(bytes)
 	js := string(bytes[:i])
@@ -75,7 +87,7 @@ func TestHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lrserver.Close()
+	close(t)
 }
 
 func TestReload(t *testing.T) {
@@ -88,7 +100,7 @@ func TestReload(t *testing.T) {
 	lrserver.Reload("index.html")
 	sr := new(serverReload)
 	websocket.JSON.Receive(ws, sr)
-	lrserver.Close()
+	close(t)
 
 	if !reflect.DeepEqual(*sr, serverReload{
 		"reload",
@@ -109,7 +121,7 @@ func TestAlert(t *testing.T) {
 	lrserver.Alert("danger danger")
 	sa := new(serverAlert)
 	websocket.JSON.Receive(ws, sa)
-	lrserver.Close()
+	close(t)
 
 	if !reflect.DeepEqual(*sa, serverAlert{
 		"alert",
@@ -126,7 +138,7 @@ func TestReject(t *testing.T) {
 	if err == nil {
 		t.Fatal("unsuccessful reject")
 	}
-	lrserver.Close()
+	close(t)
 }
 
 func connect(t *testing.T) *websocket.Conn {
@@ -149,6 +161,13 @@ func start(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
+}
+
+func close(t *testing.T) {
+	err := lrserver.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func dial() (*websocket.Conn, error) {

@@ -2,6 +2,7 @@ package lrserver
 
 import (
 	"code.google.com/p/go.net/websocket"
+	"errors"
 	"net"
 	"net/http"
 )
@@ -42,8 +43,11 @@ func (s *server) listenAndServe() error {
 }
 
 func (s *server) close() error {
-	s.closing = true
+	if s.listener == nil {
+		return errors.New("close called before server started")
+	}
 
+	s.closing = true
 	err := (*s.listener).Close()
 	if err != nil {
 		return err
@@ -59,9 +63,17 @@ func (s *server) setConnection(ws *websocket.Conn) {
 }
 
 func (s *server) sendReload(file string) {
+	if s.connection == nil {
+		logger.Printf("can't send request to reload %s, no connection", file)
+		return
+	}
 	*s.connection.reloadChan <- file
 }
 
 func (s *server) sendAlert(msg string) {
+	if s.connection == nil {
+		logger.Printf("can't send request to alert \"%s\", no connection", msg)
+		return
+	}
 	*s.connection.alertChan <- msg
 }
