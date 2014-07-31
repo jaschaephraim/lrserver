@@ -11,9 +11,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-// the test LRServer
-var lrs *lrserver.LRServer
-
 var clientHello = struct {
 	Command   string   `json:"command"`
 	Protocols []string `json:"protocols"`
