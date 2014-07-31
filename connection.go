@@ -1,37 +1,37 @@
 package lrserver
 
-import "code.google.com/p/go.net/websocket"
+import (
+	"log"
+
+	"code.google.com/p/go.net/websocket"
+)
 
 type connection struct {
 	websocket  *websocket.Conn
+	logger     *log.Logger
 	handshake  bool
-	helloChan  *chan *clientHello
-	reloadChan *chan string
-	alertChan  *chan string
-	closeChan  *chan struct{}
+	helloChan  chan *clientHello
+	reloadChan chan string
+	alertChan  chan string
+	closeChan  chan struct{}
 }
 
-func newConnection(ws *websocket.Conn) *connection {
-	c := connection{
+func newConnection(ws *websocket.Conn, logger *log.Logger) *connection {
+	return &connection{
 		websocket: ws,
+		logger:    logger,
+
+		helloChan:  make(chan *clientHello),
+		reloadChan: make(chan string),
+		alertChan:  make(chan string),
+		closeChan:  make(chan struct{}),
 	}
-
-	hc := make(chan *clientHello)
-	rc := make(chan string)
-	ac := make(chan string)
-	cc := make(chan struct{})
-	c.helloChan = &hc
-	c.reloadChan = &rc
-	c.alertChan = &ac
-	c.closeChan = &cc
-
-	return &c
 }
 
 func (c *connection) start() {
 	go c.listen()
 	go c.respond()
-	<-*c.closeChan
+	<-c.closeChan
 }
 
 func (c *connection) listen() {
@@ -41,7 +41,7 @@ func (c *connection) listen() {
 		if err != nil {
 			c.close()
 		}
-		*c.helloChan <- hello
+		c.helloChan <- hello
 		break
 	}
 }
@@ -51,21 +51,21 @@ func (c *connection) respond() {
 		var resp interface{}
 
 		select {
-		case hello := <-*c.helloChan:
+		case hello := <-c.helloChan:
 			if !validateHello(hello) {
-				logger.Println("invalid handshake, disconnecting")
+				c.logger.Println("invalid handshake, disconnecting")
 				c.close()
 				return
 			}
 			resp = serverHello
 			c.handshake = true
-		case file := <-*c.reloadChan:
+		case file := <-c.reloadChan:
 			if !c.handshake {
 				c.close()
 				return
 			}
 			resp = newServerReload(file)
-		case msg := <-*c.alertChan:
+		case msg := <-c.alertChan:
 			if !c.handshake {
 				c.close()
 				return
@@ -82,5 +82,5 @@ func (c *connection) respond() {
 }
 
 func (c *connection) close() {
-	*c.closeChan <- struct{}{}
+	c.closeChan <- struct{}{}
 }

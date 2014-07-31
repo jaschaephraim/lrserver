@@ -1,7 +1,7 @@
 package lrserver
 
-func init() {
-	JS = `(function() {
+// JS contains LiveReload's client JavaScript (https://github.com/livereload/livereload-js)
+const JS = `(function() {
 var __protocol = {}, __connector = {}, __customevents = {}, __less = {}, __timer = {}, __options = {}, __reloader = {}, __livereload = {}, __startup = {};
 
 // protocol
@@ -1133,4 +1133,3 @@ CustomEvents.bind(document, 'LiveReloadShutDown', function() {
   return LiveReload.shutDown();
 });
 })();`
-}
