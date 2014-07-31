@@ -1,9 +1,14 @@
 package lrserver
 
-import "code.google.com/p/go.net/websocket"
+import (
+	"log"
+
+	"code.google.com/p/go.net/websocket"
+)
 
 type connection struct {
 	websocket  *websocket.Conn
+	logger     *log.Logger
 	handshake  bool
 	helloChan  chan *clientHello
 	reloadChan chan string
@@ -11,17 +16,16 @@ type connection struct {
 	closeChan  chan struct{}
 }
 
-func newConnection(ws *websocket.Conn) *connection {
-	c := connection{
+func newConnection(ws *websocket.Conn, logger *log.Logger) *connection {
+	return &connection{
 		websocket: ws,
+		logger:    logger,
+
+		helloChan:  make(chan *clientHello),
+		reloadChan: make(chan string),
+		alertChan:  make(chan string),
+		closeChan:  make(chan struct{}),
 	}
-
-	c.helloChan = make(chan *clientHello)
-	c.reloadChan = make(chan string)
-	c.alertChan = make(chan string)
-	c.closeChan = make(chan struct{})
-
-	return &c
 }
 
 func (c *connection) start() {
@@ -49,7 +53,7 @@ func (c *connection) respond() {
 		select {
 		case hello := <-c.helloChan:
 			if !validateHello(hello) {
-				logger.Println("invalid handshake, disconnecting")
+				c.logger.Println("invalid handshake, disconnecting")
 				c.close()
 				return
 			}

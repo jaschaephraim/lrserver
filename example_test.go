@@ -1,10 +1,11 @@
 package lrserver_test
 
 import (
-	"github.com/jaschaephraim/lrserver"
-	"gopkg.in/fsnotify.v0"
 	"log"
 	"net/http"
+
+	"github.com/jaschaephraim/lrserver"
+	"gopkg.in/fsnotify.v0"
 )
 
 // html includes the client JavaScript
@@ -31,14 +32,16 @@ func Example() {
 		log.Fatalln(err)
 	}
 
-	// Start LiveReload server
-	go lrserver.ListenAndServe()
+	lr, err := lrserver.NewLRServer(nil)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	// Start goroutine that requests reload upon watcher event
 	go func() {
 		for {
 			event := <-watcher.Events
-			lrserver.Reload(event.Name)
+			lr.Reload(event.Name)
 		}
 	}()
 
@@ -47,4 +50,6 @@ func Example() {
 		rw.Write([]byte(html))
 	})
 	http.ListenAndServe(":3000", nil)
+
+	<-lr.Running
 }

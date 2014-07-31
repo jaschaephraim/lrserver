@@ -21,10 +21,16 @@ lrserver.Alert(msg string).
 package lrserver
 
 import (
-	"code.google.com/p/go.net/websocket"
+	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"time"
+
+	"github.com/gorilla/mux"
+
+	"code.google.com/p/go.net/websocket"
 )
 
 var (
@@ -33,50 +39,103 @@ var (
 
 	// LiveCSS tells LiveReload whether you want it to update CSS without reloading
 	LiveCSS = true
-
-	// JS is initialized to contain LiveReload's client JavaScript (https://github.com/livereload/livereload-js)
-	JS string
-
-	logger = log.New(os.Stdout, "[lrserver] ", 0)
-	srv    = newServer()
 )
 
-func init() {
-	// Handle JS request
-	http.HandleFunc("/livereload.js", func(rw http.ResponseWriter, req *http.Request) {
-		rw.Header().Set("Content-Type", "application/javascript")
-		_, err := rw.Write([]byte(JS))
-		if err != nil {
-			logger.Println(err)
-		}
-	})
+type LRServer struct {
+	httpServer *http.Server
+	listener   net.Listener
+	connection *connection
 
-	// Handle WebSockets
-	http.Handle("/livereload", websocket.Handler(func(ws *websocket.Conn) {
-		srv.setConnection(ws)
-	}))
+	logger *log.Logger
+
+	Running chan struct{}
 }
 
-// ListenAndServe starts the server at lrserver.Addr.
-func ListenAndServe() error {
-	logger.Println("listening on " + Addr)
-	return srv.listenAndServe()
+func NewLRServer(writer io.Writer) (srv *LRServer, err error) {
+	srv = &LRServer{
+		httpServer: &http.Server{
+			Addr: Addr,
+		},
+	}
+
+	if writer == nil {
+		writer = os.Stdout
+	}
+
+	srv.logger = log.New(writer, "[lrserver] ", 0)
+
+	r := mux.NewRouter()
+
+	// Handle JS request
+	r.HandleFunc("/livereload.js", srv.jsHandler)
+
+	// Handle WebSockets
+	r.Handle("/livereload", websocket.Handler(func(ws *websocket.Conn) {
+		srv.connection = newConnection(ws, srv.logger)
+		srv.connection.start()
+	}))
+
+	srv.logger.Println("listening on " + Addr)
+
+	errc := make(chan error)
+
+	go func() {
+
+		// Create listener
+		srv.listener, err = net.Listen("tcp", Addr)
+		if err != nil {
+			errc <- err
+			return
+		}
+
+		// Start server
+		if err = http.Serve(srv.listener, r); err != nil {
+			errc <- err
+		}
+	}()
+
+	select {
+	case e := <-errc:
+		if e != nil {
+			return nil, e
+		}
+	case <-time.After(time.Millisecond * 150):
+		srv.logger.Println("No error, continueing")
+		srv.Running = make(chan struct{})
+	}
+
+	return srv, nil
+}
+
+func (s *LRServer) jsHandler(rw http.ResponseWriter, req *http.Request) {
+	rw.Header().Set("Content-Type", "application/javascript")
+
+	_, err := rw.Write([]byte(JS))
+	if err != nil {
+		s.logger.Println(err)
+	}
 }
 
 // Close ungracefully stops the currently running server.
-func Close() error {
-	logger.Println("stopping server")
-	return srv.close()
+func (s *LRServer) Close() error {
+	s.logger.Println("stopping server")
+
+	if err := s.listener.Close(); err != nil {
+		return err
+	}
+
+	close(s.Running)
+	return nil
 }
 
 // Reload sends a reload request to connected client.
-func Reload(file string) {
-	logger.Println("requesting reload: " + file)
-	srv.sendReload(file)
+func (s *LRServer) Reload(file string) {
+	s.logger.Println("requesting reload: " + file)
+	s.connection.reloadChan <- file
 }
 
 // Alert sends an alert request to connected client.
-func Alert(msg string) {
-	logger.Println("requesting alert: " + msg)
-	srv.sendAlert(msg)
+func (s *LRServer) Alert(msg string) {
+	s.logger.Println("requesting alert: " + msg)
+	s.connection.alertChan <- msg
 }
