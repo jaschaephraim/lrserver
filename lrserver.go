@@ -130,12 +130,20 @@ func (s *LRServer) Close() error {
 
 // Reload sends a reload request to connected client.
 func (s *LRServer) Reload(file string) {
+	if s.connection == nil {
+		s.logger.Println("Connection not ready yet.")
+		return
+	}
 	s.logger.Println("requesting reload: " + file)
 	s.connection.reloadChan <- file
 }
 
 // Alert sends an alert request to connected client.
 func (s *LRServer) Alert(msg string) {
+	if s.connection == nil {
+		s.logger.Println("Connection not ready yet.")
+		return
+	}
 	s.logger.Println("requesting alert: " + msg)
 	s.connection.alertChan <- msg
 }
