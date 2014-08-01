@@ -21,10 +21,11 @@ lrserver.Alert(msg string).
 package lrserver
 
 import (
-	"code.google.com/p/go.net/websocket"
 	"log"
 	"net/http"
 	"os"
+
+	"code.google.com/p/go.net/websocket"
 )
 
 var (

@@ -1,10 +1,11 @@
 package lrserver
 
 import (
-	"code.google.com/p/go.net/websocket"
 	"errors"
 	"net"
 	"net/http"
+
+	"code.google.com/p/go.net/websocket"
 )
 
 type server struct {

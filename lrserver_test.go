@@ -1,13 +1,14 @@
 package lrserver_test
 
 import (
-	"code.google.com/p/go.net/websocket"
 	"errors"
-	"github.com/jaschaephraim/lrserver"
 	"net/http"
 	"reflect"
 	"testing"
 	"time"
+
+	"code.google.com/p/go.net/websocket"
+	"github.com/jaschaephraim/lrserver"
 )
 
 var clientHello = struct {
