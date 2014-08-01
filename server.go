@@ -67,7 +67,7 @@ func (s *server) sendReload(file string) {
 		logger.Printf("can't send request to reload %s, no connection", file)
 		return
 	}
-	*s.connection.reloadChan <- file
+	s.connection.reloadChan <- file
 }
 
 func (s *server) sendAlert(msg string) {
@@ -75,5 +75,5 @@ func (s *server) sendAlert(msg string) {
 		logger.Printf("can't send request to alert \"%s\", no connection", msg)
 		return
 	}
-	*s.connection.alertChan <- msg
+	s.connection.alertChan <- msg
 }
