@@ -1,10 +1,11 @@
 package lrserver_test
 
 import (
-	"github.com/jaschaephraim/lrserver"
-	"gopkg.in/fsnotify.v0"
 	"log"
 	"net/http"
+
+	"github.com/jaschaephraim/lrserver"
+	"gopkg.in/fsnotify.v0"
 )
 
 // html includes the client JavaScript
