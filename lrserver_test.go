@@ -1,14 +1,14 @@
 package lrserver_test
 
 import (
-	"errors"
+	"io/ioutil"
 	"net/http"
-	"reflect"
 	"testing"
 	"time"
 
 	"code.google.com/p/go.net/websocket"
 	"github.com/jaschaephraim/lrserver"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var clientHello = struct {
@@ -40,157 +40,100 @@ type serverAlert struct {
 	Message string `json:"message"`
 }
 
-func TestDisconnectedClose(t *testing.T) {
-	lrserver.Close()
-}
+func TestAll(t *testing.T) {
+	Convey("Start a NewServer()", t, func() {
+		errc := make(chan error)
 
-func TestDisconnectedReload(t *testing.T) {
-	lrserver.Reload("")
-}
+		go func() {
+			errc <- lrserver.ListenAndServe()
+		}()
 
-func TestDisconnectedAlert(t *testing.T) {
-	lrserver.Alert("")
-}
-
-func TestListenAndServe(t *testing.T) {
-	connect(t)
-	close(t)
-}
-
-func TestClose(t *testing.T) {
-	connect(t)
-	close(t)
-	_, err := dial()
-	if err == nil {
-		t.Fatal("unsuccessful closing of server")
-	}
-}
-
-func TestJS(t *testing.T) {
-	start(t)
-	resp, err := http.Get("http://localhost:35729/livereload.js")
-	if err != nil {
-		t.Fatal(err)
-	}
-	close(t)
-	bytes := make([]byte, 65536)
-	i, _ := resp.Body.Read(bytes)
-	js := string(bytes[:i])
-
-	if js != lrserver.JS {
-		t.Fatal("unsuccessful serving of javascript")
-	}
-}
-
-func TestHandshake(t *testing.T) {
-	ws := connect(t)
-	err := handshake(ws, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	close(t)
-}
-
-func TestReload(t *testing.T) {
-	ws := connect(t)
-	err := handshake(ws, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	lrserver.Reload("index.html")
-	sr := new(serverReload)
-	websocket.JSON.Receive(ws, sr)
-	close(t)
-
-	if !reflect.DeepEqual(*sr, serverReload{
-		"reload",
-		"index.html",
-		true,
-	}) {
-		t.Fatal("unsuccessful reload")
-	}
-}
-
-func TestAlert(t *testing.T) {
-	ws := connect(t)
-	err := handshake(ws, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	lrserver.Alert("danger danger")
-	sa := new(serverAlert)
-	websocket.JSON.Receive(ws, sa)
-	close(t)
-
-	if !reflect.DeepEqual(*sa, serverAlert{
-		"alert",
-		"danger danger",
-	}) {
-		t.Fatal("unsuccessful alert")
-	}
-}
-
-func TestReject(t *testing.T) {
-	ws := connect(t)
-	websocket.JSON.Send(ws, struct{ string }{"bingo"})
-	err := handshake(ws, t)
-	if err == nil {
-		t.Fatal("unsuccessful reject")
-	}
-	close(t)
-}
-
-func connect(t *testing.T) *websocket.Conn {
-	start(t)
-	ws, err := dial()
-	for i := 0; i < 3 && err != nil; i++ {
-		time.Sleep(time.Millisecond * 500)
-		ws, err = dial()
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	return ws
-}
-
-func start(t *testing.T) {
-	go func() {
-		err := lrserver.ListenAndServe()
-		if err != nil {
-			t.Fatal(err)
+		select {
+		case e := <-errc:
+			So(e, ShouldBeNil)
+		case <-time.After(time.Millisecond * 150):
+			t.Log("No error, continueing")
 		}
-	}()
-}
 
-func close(t *testing.T) {
-	err := lrserver.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
+		Convey("create a client", func() {
+			ws, err := websocket.Dial("ws://localhost:35729/livereload", "", "http://localhost/")
+			So(err, ShouldBeNil)
 
-func dial() (*websocket.Conn, error) {
-	return websocket.Dial("ws://localhost:35729/livereload", "", "http://localhost/")
-}
+			Convey("Reject Handshake", func() {
+				err := websocket.JSON.Send(ws, struct{ string }{"bingo"})
+				So(err, ShouldBeNil)
 
-func handshake(ws *websocket.Conn, t *testing.T) error {
-	websocket.JSON.Send(ws, clientHello)
-	sh := new(serverHello)
-	websocket.JSON.Receive(ws, sh)
-	if !reflect.DeepEqual(*sh, serverHello{
-		"hello",
-		[]string{
-			"http://livereload.com/protocols/official-7",
-			"http://livereload.com/protocols/official-8",
-			"http://livereload.com/protocols/official-9",
-			"http://livereload.com/protocols/2.x-origin-version-negotiation",
-			"http://livereload.com/protocols/2.x-remote-control",
-		},
-		"collective-dev",
-	}) {
-		return errors.New("unsuccessful handshake")
-	}
-	return nil
+				sh := new(serverHello)
+				err = websocket.JSON.Receive(ws, sh)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "EOF")
+			})
+
+			Convey("Handhsake", func() {
+				err := websocket.JSON.Send(ws, clientHello)
+				So(err, ShouldBeNil)
+
+				sh := new(serverHello)
+				err = websocket.JSON.Receive(ws, sh)
+				So(err, ShouldBeNil)
+
+				So(sh, ShouldResemble, &serverHello{
+					"hello",
+					[]string{
+						"http://livereload.com/protocols/official-7",
+						"http://livereload.com/protocols/official-8",
+						"http://livereload.com/protocols/official-9",
+						"http://livereload.com/protocols/2.x-origin-version-negotiation",
+						"http://livereload.com/protocols/2.x-remote-control",
+					},
+					"collective-dev",
+				})
+
+				Convey("Reload", func() {
+					fname := "index.html"
+					lrserver.Reload(fname)
+
+					sr := new(serverReload)
+					err := websocket.JSON.Receive(ws, sr)
+					So(err, ShouldBeNil)
+
+					So(sr, ShouldResemble, &serverReload{
+						"reload",
+						fname,
+						true,
+					})
+				})
+
+				Convey("Alert", func() {
+					altext := "danger danger"
+					lrserver.Alert(altext)
+
+					sa := new(serverAlert)
+					err := websocket.JSON.Receive(ws, sa)
+					So(err, ShouldBeNil)
+
+					So(sa, ShouldResemble, &serverAlert{
+						"alert",
+						altext,
+					})
+				})
+			})
+		})
+
+		Convey("JS", func() {
+			resp, err := http.Get("http://localhost:35729/livereload.js")
+			So(err, ShouldBeNil)
+
+			So(resp.StatusCode, ShouldEqual, http.StatusOK)
+
+			jsBody, err := ioutil.ReadAll(resp.Body)
+			So(err, ShouldBeNil)
+			So(string(jsBody), ShouldEqual, lrserver.JS)
+		})
+
+		// test close
+		Reset(func() {
+			So(lrserver.Close(), ShouldBeNil)
+		})
+	})
 }
