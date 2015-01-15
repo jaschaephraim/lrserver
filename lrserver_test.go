@@ -1,9 +1,9 @@
 package lrserver_test
 
 import (
-	"code.google.com/p/go.net/websocket"
 	"errors"
 	"github.com/jaschaephraim/lrserver"
+	"golang.org/x/net/websocket"
 	"net/http"
 	"reflect"
 	"testing"

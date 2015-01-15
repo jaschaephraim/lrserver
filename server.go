@@ -1,8 +1,8 @@
 package lrserver
 
 import (
-	"code.google.com/p/go.net/websocket"
 	"errors"
+	"golang.org/x/net/websocket"
 	"net"
 	"net/http"
 )

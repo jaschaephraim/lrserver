@@ -65,7 +65,7 @@ var (
 ```go
 import (
     "github.com/jaschaephraim/lrserver"
-    "gopkg.in/fsnotify.v0"
+    "golang.org/x/exp/fsnotify"
     "log"
     "net/http"
 )

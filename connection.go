@@ -1,6 +1,6 @@
 package lrserver
 
-import "code.google.com/p/go.net/websocket"
+import "golang.org/x/net/websocket"
 
 type connection struct {
 	websocket  *websocket.Conn

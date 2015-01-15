@@ -2,7 +2,7 @@ package lrserver_test
 
 import (
 	"github.com/jaschaephraim/lrserver"
-	"gopkg.in/fsnotify.v1"
+	"golang.org/x/exp/fsnotify"
 	"log"
 	"net/http"
 )
