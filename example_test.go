@@ -12,6 +12,7 @@ const html = `<!doctype html>
 <html>
 <head>
   <title>Example</title>
+</head>
 <body>
   <script src="http://localhost:35729/livereload.js"></script>
 </body>
@@ -25,8 +26,8 @@ func Example() {
 	}
 	defer watcher.Close()
 
-	// Add dir to watcher
-	err = watcher.Add("/path/to/watched/dir")
+	// Watch dir
+	err = watcher.Watch("/path/to/watched/dir")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -37,7 +38,7 @@ func Example() {
 	// Start goroutine that requests reload upon watcher event
 	go func() {
 		for {
-			event := <-watcher.Events
+			event := <-watcher.Event
 			lrserver.Reload(event.Name)
 		}
 	}()
