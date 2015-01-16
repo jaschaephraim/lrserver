@@ -90,7 +90,7 @@ func Example() {
     defer watcher.Close()
 
     // Add dir to watcher
-    err = watcher.Add("/path/to/watched/dir")
+    err = watcher.Watch("/path/to/watched/dir")
     if err != nil {
         log.Fatalln(err)
     }

@@ -67,7 +67,7 @@ func TestClose(t *testing.T) {
 
 func TestJS(t *testing.T) {
 	start(t)
-	resp, err := http.Get("http://localhost:35729/livereload.js")
+	resp, err := http.Get("http://127.0.0.1:35729/livereload.js")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func close(t *testing.T) {
 }
 
 func dial() (*websocket.Conn, error) {
-	return websocket.Dial("ws://localhost:35729/livereload", "", "http://localhost/")
+	return websocket.Dial("ws://127.0.0.1:35729/livereload", "", "http://127.0.0.1/")
 }
 
 func handshake(ws *websocket.Conn, t *testing.T) error {
