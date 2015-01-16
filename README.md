@@ -75,6 +75,7 @@ const html = `<!doctype html>
 <html>
 <head>
   <title>Example</title>
+</head>
 <body>
   <script src="http://localhost:35729/livereload.js"></script>
 </body>
