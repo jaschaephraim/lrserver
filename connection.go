@@ -47,7 +47,7 @@ func (c *connection) respond() {
 		select {
 		case hello := <-c.helloChan:
 			if !validateHello(hello) {
-				logger.Println("invalid handshake, disconnecting")
+				Logger.Println("invalid handshake, disconnecting")
 				c.close()
 				return
 			}
