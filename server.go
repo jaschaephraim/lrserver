@@ -64,7 +64,7 @@ func (s *server) setConnection(ws *websocket.Conn) {
 
 func (s *server) sendReload(file string) {
 	if s.connection == nil {
-		logger.Printf("can't send request to reload %s, no connection", file)
+		Logger.Printf("can't send request to reload %s, no connection", file)
 		return
 	}
 	s.connection.reloadChan <- file
@@ -72,7 +72,7 @@ func (s *server) sendReload(file string) {
 
 func (s *server) sendAlert(msg string) {
 	if s.connection == nil {
-		logger.Printf("can't send request to alert \"%s\", no connection", msg)
+		Logger.Printf("can't send request to alert \"%s\", no connection", msg)
 		return
 	}
 	s.connection.alertChan <- msg

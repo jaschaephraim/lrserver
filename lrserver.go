@@ -37,7 +37,7 @@ var (
 	// JS is initialized to contain LiveReload's client JavaScript (https://github.com/livereload/livereload-js)
 	JS string
 
-	logger = log.New(os.Stdout, "[lrserver] ", 0)
+	Logger = log.New(os.Stdout, "[lrserver] ", 0)
 	srv    = newServer()
 )
 
@@ -47,7 +47,7 @@ func init() {
 		rw.Header().Set("Content-Type", "application/javascript")
 		_, err := rw.Write([]byte(JS))
 		if err != nil {
-			logger.Println(err)
+			Logger.Println(err)
 		}
 	})
 
@@ -59,24 +59,24 @@ func init() {
 
 // ListenAndServe starts the server at lrserver.Addr.
 func ListenAndServe() error {
-	logger.Println("listening on " + Addr)
+	Logger.Println("listening on " + Addr)
 	return srv.listenAndServe()
 }
 
 // Close ungracefully stops the currently running server.
 func Close() error {
-	logger.Println("stopping server")
+	Logger.Println("stopping server")
 	return srv.close()
 }
 
 // Reload sends a reload request to connected client.
 func Reload(file string) {
-	logger.Println("requesting reload: " + file)
+	Logger.Println("requesting reload: " + file)
 	srv.sendReload(file)
 }
 
 // Alert sends an alert request to connected client.
 func Alert(msg string) {
-	logger.Println("requesting alert: " + msg)
+	Logger.Println("requesting alert: " + msg)
 	srv.sendAlert(msg)
 }
