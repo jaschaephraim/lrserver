@@ -2,72 +2,69 @@
 
 Golang package that implements a simple LiveReload server as described in the [LiveReload protocol](http://feedback.livereload.com/knowledgebase/articles/86174-livereload-protocol).
 
+Using the recommended default port 35729:
+
+- `http://localhost:35729/livereload.js` serves the LiveReload client JavaScript (https://github.com/livereload/livereload-js)
+
+- `ws://localhost:35729/livereload` communicates with the client via web socket.
+
+File watching must be implemented by your own application, and reload/alert
+requests sent programmatically.
+
+Multiple servers can be instantiated, and each can support multiple connections.
+
+## Full Documentation: [![GoDoc](https://godoc.org/github.com/jaschaephraim/lrserver?status.svg)](http://godoc.org/github.com/jaschaephraim/lrserver) ##
+
+## Basic Usage ##
+
+### Get Package ###
+
 ```bash
 go get github.com/jaschaephraim/lrserver
 ```
 
-Using the default address of ":35729" (which can be changed by setting `lrserver.Addr`):
-
-- `http://localhost:35729/livereload.js` serves the LiveReload client JavaScript (https://github.com/livereload/livereload-js, which can be changed by setting `lrserver.JS`),
-
-- `ws://localhost:35729/livereload` communicates with the client.
-
-File watching must be implemented by your own application, and reload/alert
-requests sent programmatically by calling `lrserver.Reload(file string)` and
-`lrserver.Alert(msg string)`.
-
-## Usage [![GoDoc](https://godoc.org/github.com/jaschaephraim/lrserver?status.svg)](http://godoc.org/github.com/jaschaephraim/lrserver) ##
-
-### Functions ###
+### Import Package ###
 
 ```go
-func ListenAndServe() error
+import "github.com/jaschaephraim/lrserver"
 ```
 
-ListenAndServe starts the server at `lrserver.Addr`.
+### Instantiate Server ###
 
 ```go
-func Close() error
+lr, err := lrserver.New(lrserver.DefaultName, lrserver.DefaultPort)
+if err != nil {
+    // Handle error
+}
 ```
 
-Close ungracefully stops the currently running server.
+### Start Server ###
 
 ```go
-func Reload(file string)
+go func() {
+    err = lr.ListenAndServe()
+    if err != nil {
+        // Handle error
+    }
+}()
 ```
 
-Reload sends a reload request to connected client.
+### Send Messages to the Browser ###
 
 ```go
-func Alert(msg string)
-```
-
-Alert sends an alert request to connected client.
-
-### Variables ###
-
-```go
-var (
-    // Addr is typically just the port number where the LiveReload server can be reached.
-    Addr = ":35729"
-
-    // LiveCSS tells LiveReload whether you want it to update CSS without reloading
-    LiveCSS = true
-
-    // JS is initialized to contain LiveReload's client JavaScript
-    // (https://github.com/livereload/livereload-js)
-    JS string
-)
+lr.Reload("file")
+lr.Alert("message")
 ```
 
 ## Example ##
 
 ```go
 import (
-    "github.com/jaschaephraim/lrserver"
-    "golang.org/x/exp/fsnotify"
     "log"
     "net/http"
+
+    "github.com/jaschaephraim/lrserver"
+    "golang.org/x/exp/fsnotify"
 )
 
 // html includes the client JavaScript
@@ -95,14 +92,15 @@ func Example() {
         log.Fatalln(err)
     }
 
-    // Start LiveReload server
-    go lrserver.ListenAndServe()
+    // Create and start LiveReload server
+    lr := lrserver.New(lrserver.DefaultName, lrserver.DefaultPort)
+    go lr.ListenAndServe()
 
     // Start goroutine that requests reload upon watcher event
     go func() {
         for {
             event := <-watcher.Events
-            lrserver.Reload(event.Name)
+            lr.Reload(event.Name)
         }
     }()
 

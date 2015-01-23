@@ -1,80 +1,154 @@
 package lrserver
 
-import "golang.org/x/net/websocket"
+import (
+	"encoding/json"
+	"strconv"
+	"time"
 
-type connection struct {
-	websocket  *websocket.Conn
-	handshake  bool
-	helloChan  chan *clientHello
+	"github.com/gorilla/websocket"
+)
+
+type conn struct {
+	conn *websocket.Conn
+
+	server    *Server
+	handshake bool
+
 	reloadChan chan string
 	alertChan  chan string
-	closeChan  chan struct{}
+	closeChan  chan closeSignal
 }
 
-func newConnection(ws *websocket.Conn) *connection {
-	return &connection{
-		websocket: ws,
+func (c *conn) start() {
+	go c.receive()
+	go c.transmit()
 
-		helloChan:  make(chan *clientHello),
-		reloadChan: make(chan string),
-		alertChan:  make(chan string),
-		closeChan:  make(chan struct{}),
+	// Say hello
+	err := c.conn.WriteJSON(makeServerHello(c.server.Name()))
+	if err != nil {
+		c.close(websocket.CloseInternalServerErr, err)
 	}
-}
 
-func (c *connection) start() {
-	go c.listen()
-	go c.respond()
+	// Block until close signal is sent
 	<-c.closeChan
 }
 
-func (c *connection) listen() {
+func (c *conn) receive() {
 	for {
-		hello := new(clientHello)
-		err := websocket.JSON.Receive(c.websocket, hello)
+		// Get next message
+		msgType, reader, err := c.conn.NextReader()
 		if err != nil {
-			c.close()
+			c.close(0, err)
+			return
 		}
-		c.helloChan <- hello
-		break
+
+		// Close if binary instead of text
+		if msgType == websocket.BinaryMessage {
+			c.close(websocket.CloseUnsupportedData, nil)
+			return
+		}
+
+		// Close if it's not JSON
+		hello := new(clientHello)
+		err = json.NewDecoder(reader).Decode(hello)
+		if err != nil {
+			c.close(websocket.ClosePolicyViolation, err)
+			return
+		}
+
+		// Close if missing a command field
+		if hello.Command == "" {
+			c.close(websocket.ClosePolicyViolation, nil)
+		}
+
+		// Validate handshake
+		if !c.handshake {
+			if !validateHello(hello) {
+				c.badHandshake()
+				return
+			}
+			c.handshake = true
+			c.server.logStatus("connected")
+		}
 	}
 }
 
-func (c *connection) respond() {
+func (c *conn) transmit() {
 	for {
 		var resp interface{}
-
 		select {
-		case hello := <-c.helloChan:
-			if !validateHello(hello) {
-				logger.Println("invalid handshake, disconnecting")
-				c.close()
-				return
-			}
-			resp = serverHello
-			c.handshake = true
+
+		// Reload
 		case file := <-c.reloadChan:
 			if !c.handshake {
-				c.close()
+				c.badHandshake()
 				return
 			}
-			resp = newServerReload(file)
+			resp = makeServerReload(file, c.server.LiveCSS)
+
+		// Alert
 		case msg := <-c.alertChan:
 			if !c.handshake {
-				c.close()
+				c.badHandshake()
 				return
 			}
-			resp = newServerAlert(msg)
+			resp = makeServerAlert(msg)
 		}
 
-		err := websocket.JSON.Send(c.websocket, resp)
+		err := c.conn.WriteJSON(resp)
 		if err != nil {
-			c.close()
+			c.close(websocket.CloseInternalServerErr, err)
 			return
 		}
 	}
 }
 
-func (c *connection) close() {
-	c.closeChan <- struct{}{}
+func (c *conn) badHandshake() {
+	c.close(websocket.ClosePolicyViolation, websocket.ErrBadHandshake)
 }
+
+func (c *conn) close(closeCode int, closeErr error) error {
+	var err error
+	var errMsg string
+
+	if closeErr != nil {
+		errMsg = closeErr.Error()
+		c.server.logError(closeErr)
+
+		// Attempt to set close code from error message
+		errMsgLen := len(errMsg)
+		if errMsgLen >= 21 && errMsg[:17] == "websocket: close " {
+			closeCode, err = strconv.Atoi(errMsg[17:21])
+			if errMsgLen > 21 {
+				errMsg = errMsg[22:]
+			}
+		}
+	}
+
+	// Default close code
+	if closeCode == 0 {
+		closeCode = websocket.CloseNoStatusReceived
+	}
+
+	// Send close message
+	closeMessage := websocket.FormatCloseMessage(closeCode, errMsg)
+	deadline := time.Now().Add(time.Second)
+	err = c.conn.WriteControl(websocket.CloseMessage, closeMessage, deadline)
+
+	// Kill and remove connection
+	c.closeChan <- closeSignal{}
+	c.server.conns.remove(c)
+	return err
+}
+
+type connSet map[*conn]struct{}
+
+func (cs connSet) add(c *conn) {
+	cs[c] = struct{}{}
+}
+
+func (cs connSet) remove(c *conn) {
+	delete(cs, c)
+}
+
+type closeSignal struct{}

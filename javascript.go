@@ -1,7 +1,6 @@
 package lrserver
 
-func init() {
-	JS = `(function() {
+const js string = `(function() {
 var __protocol = {}, __connector = {}, __customevents = {}, __less = {}, __timer = {}, __options = {}, __reloader = {}, __livereload = {}, __startup = {};
 
 // protocol
@@ -412,7 +411,7 @@ var Options;
 __options.Options = Options = (function() {
   function Options() {
     this.host = null;
-    this.port = 35729;
+    this.port = %d;
     this.snipver = null;
     this.ext = null;
     this.extver = null;
@@ -1133,4 +1132,3 @@ CustomEvents.bind(document, 'LiveReloadShutDown', function() {
   return LiveReload.shutDown();
 });
 })();`
-}

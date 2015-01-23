@@ -1,14 +1,20 @@
 package lrserver_test
 
 import (
-	"errors"
-	"github.com/jaschaephraim/lrserver"
-	"golang.org/x/net/websocket"
+	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/jaschaephraim/lrserver"
+	. "github.com/smartystreets/goconvey/convey"
 )
+
+const localhost string = "://127.0.0.1"
 
 var clientHello = struct {
 	Command   string   `json:"command"`
@@ -20,6 +26,12 @@ var clientHello = struct {
 		"http://livereload.com/protocols/official-8",
 		"http://livereload.com/protocols/2.x-origin-version-negotiation",
 	},
+}
+
+var randomMessage = struct {
+	Command string `json:"command"`
+}{
+	"random",
 }
 
 type serverHello struct {
@@ -39,157 +51,163 @@ type serverAlert struct {
 	Message string `json:"message"`
 }
 
-func TestDisconnectedClose(t *testing.T) {
-	lrserver.Close()
-}
-
-func TestDisconnectedReload(t *testing.T) {
-	lrserver.Reload("")
-}
-
-func TestDisconnectedAlert(t *testing.T) {
-	lrserver.Alert("")
-}
-
-func TestListenAndServe(t *testing.T) {
-	connect(t)
-	close(t)
-}
-
-func TestClose(t *testing.T) {
-	connect(t)
-	close(t)
-	_, err := dial()
-	if err == nil {
-		t.Fatal("unsuccessful closing of server")
-	}
-}
-
-func TestJS(t *testing.T) {
-	start(t)
-	resp, err := http.Get("http://127.0.0.1:35729/livereload.js")
-	if err != nil {
-		t.Fatal(err)
-	}
-	close(t)
-	bytes := make([]byte, 65536)
-	i, _ := resp.Body.Read(bytes)
-	js := string(bytes[:i])
-
-	if js != lrserver.JS {
-		t.Fatal("unsuccessful serving of javascript")
-	}
-}
-
-func TestHandshake(t *testing.T) {
-	ws := connect(t)
-	err := handshake(ws, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	close(t)
-}
-
-func TestReload(t *testing.T) {
-	ws := connect(t)
-	err := handshake(ws, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	lrserver.Reload("index.html")
-	sr := new(serverReload)
-	websocket.JSON.Receive(ws, sr)
-	close(t)
-
-	if !reflect.DeepEqual(*sr, serverReload{
-		"reload",
-		"index.html",
-		true,
-	}) {
-		t.Fatal("unsuccessful reload")
-	}
-}
-
-func TestAlert(t *testing.T) {
-	ws := connect(t)
-	err := handshake(ws, t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	lrserver.Alert("danger danger")
-	sa := new(serverAlert)
-	websocket.JSON.Receive(ws, sa)
-	close(t)
-
-	if !reflect.DeepEqual(*sa, serverAlert{
-		"alert",
-		"danger danger",
-	}) {
-		t.Fatal("unsuccessful alert")
-	}
-}
-
-func TestReject(t *testing.T) {
-	ws := connect(t)
-	websocket.JSON.Send(ws, struct{ string }{"bingo"})
-	err := handshake(ws, t)
-	if err == nil {
-		t.Fatal("unsuccessful reject")
-	}
-	close(t)
-}
-
-func connect(t *testing.T) *websocket.Conn {
-	start(t)
-	ws, err := dial()
-	for i := 0; i < 3 && err != nil; i++ {
-		time.Sleep(time.Millisecond * 500)
-		ws, err = dial()
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	return ws
-}
-
-func start(t *testing.T) {
-	go func() {
-		err := lrserver.ListenAndServe()
+func Test(t *testing.T) {
+	Convey("Given a new server", t, func() {
+		srv, err := lrserver.New(lrserver.DefaultName, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
-	}()
-}
 
-func close(t *testing.T) {
-	err := lrserver.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
+		Convey("StatusLog() and ErrorLog() should return loggers", func() {
+			logger := log.New(nil, "", 0)
+			So(srv.StatusLog(), ShouldHaveSameTypeAs, logger)
+			So(srv.ErrorLog(), ShouldHaveSameTypeAs, logger)
+		})
 
-func dial() (*websocket.Conn, error) {
-	return websocket.Dial("ws://127.0.0.1:35729/livereload", "", "http://127.0.0.1/")
-}
+		srv.SetStatusLog(nil)
+		srv.SetErrorLog(nil)
 
-func handshake(ws *websocket.Conn, t *testing.T) error {
-	websocket.JSON.Send(ws, clientHello)
-	sh := new(serverHello)
-	websocket.JSON.Receive(ws, sh)
-	if !reflect.DeepEqual(*sh, serverHello{
-		"hello",
-		[]string{
-			"http://livereload.com/protocols/official-7",
-			"http://livereload.com/protocols/official-8",
-			"http://livereload.com/protocols/official-9",
-			"http://livereload.com/protocols/2.x-origin-version-negotiation",
-			"http://livereload.com/protocols/2.x-remote-control",
-		},
-		"collective-dev",
-	}) {
-		return errors.New("unsuccessful handshake")
-	}
-	return nil
+		// Start server
+		Convey("that is running", func() {
+			go srv.ListenAndServe()
+
+			time.Sleep(time.Nanosecond)
+
+			Convey("a dynamically assigned port should be updated", func() {
+				So(srv.Port(), ShouldNotEqual, 0)
+			})
+
+			// Test JS
+			Convey("JS should be served successfully", func() {
+				client := new(http.Client)
+				resp, err := client.Get(
+					fmt.Sprintf("http%s:%d/livereload.js", localhost, srv.Port()),
+				)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer resp.Body.Close()
+
+				body, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				bodyString := string(body)
+				So(bodyString, ShouldStartWith, "(function() {")
+				So(bodyString, ShouldEndWith, "})();")
+			})
+
+			// Connect WebSocket
+			Convey("and a connected websocket", func() {
+				dialer := new(websocket.Dialer)
+				conn, resp, err := dialer.Dial(
+					fmt.Sprintf("ws%s:%d/livereload", localhost, srv.Port()),
+					http.Header{},
+				)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				So(resp.StatusCode, ShouldEqual, 101)
+
+				// Receive hello
+				hello := new(serverHello)
+				err = conn.ReadJSON(hello)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				So(*hello, ShouldResemble, serverHello{
+					"hello",
+					[]string{
+						"http://livereload.com/protocols/official-7",
+						"http://livereload.com/protocols/official-8",
+						"http://livereload.com/protocols/official-9",
+						"http://livereload.com/protocols/2.x-origin-version-negotiation",
+						"http://livereload.com/protocols/2.x-remote-control",
+					},
+					srv.Name(),
+				})
+
+				// Test bad handshake
+				Convey("an invalid handshake should close the connection", func() {
+					err = conn.WriteJSON(randomMessage)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					_, _, err := conn.NextReader()
+					So(reflect.TypeOf(err).String(), ShouldEqual, "*websocket.closeError")
+				})
+
+				// Send valid handshake
+				Convey("and a successful handshake", func() {
+					err = conn.WriteJSON(clientHello)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					time.Sleep(time.Millisecond)
+
+					Convey("a valid client message should be tolerated", func() {
+						err = conn.WriteJSON(randomMessage)
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						errChan := make(chan error)
+						failed := false
+						go func() {
+							_, _, err := conn.NextReader()
+							errChan <- err
+						}()
+						go func() {
+							<-errChan
+							failed = true
+						}()
+
+						time.Sleep(time.Millisecond)
+
+						So(failed, ShouldBeFalse)
+					})
+
+					// Test reload
+					Convey("reload should work", func() {
+						file := "file"
+						srv.Reload(file)
+
+						sr := new(serverReload)
+						err = conn.ReadJSON(sr)
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						So(*sr, ShouldResemble, serverReload{
+							"reload",
+							file,
+							srv.LiveCSS,
+						})
+					})
+
+					// Test alert
+					Convey("alert should work", func() {
+						msg := "alert"
+						srv.Alert(msg)
+
+						sa := new(serverAlert)
+						err = conn.ReadJSON(sa)
+						if err != nil {
+							t.Fatal(err)
+						}
+
+						So(*sa, ShouldResemble, serverAlert{
+							"alert",
+							msg,
+						})
+					})
+				})
+			})
+		})
+	})
 }

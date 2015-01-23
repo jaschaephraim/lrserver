@@ -1,79 +1,186 @@
 package lrserver
 
 import (
-	"errors"
-	"golang.org/x/net/websocket"
+	"fmt"
+	"log"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
+
+	"github.com/gorilla/websocket"
 )
 
-type server struct {
-	server     *http.Server
-	listener   *net.Listener
-	connection *connection
-
-	closing bool
+type Server struct {
+	name      string
+	port      uint16
+	server    *http.Server
+	conns     connSet
+	js        string
+	statusLog *log.Logger
+	liveCSS   bool
 }
 
-func newServer() *server {
-	s := server{
+func New(name string, port uint16) (*Server, error) {
+	// Create router
+	router := http.NewServeMux()
+
+	logPrefix := "[" + name + "] "
+
+	// Create server
+	s := &Server{
+		name: name,
 		server: &http.Server{
-			Addr: Addr,
+			Handler:  router,
+			ErrorLog: log.New(os.Stderr, logPrefix, 0),
 		},
+		conns:     make(connSet),
+		statusLog: log.New(os.Stdout, logPrefix, 0),
+		liveCSS:   true,
 	}
-	return &s
+	s.setPort(port)
+
+	// Handle JS
+	router.HandleFunc("/livereload.js", jsHandler(s))
+
+	// Handle reload requests
+	router.HandleFunc("/livereload", webSocketHandler(s))
+
+	return s, nil
 }
 
-func (s *server) listenAndServe() error {
+func (s *Server) ListenAndServe() error {
 	// Create listener
-	l, err := net.Listen("tcp", Addr)
-	if err != nil {
-		return err
-	}
-	s.listener = &l
-
-	// Start server
-	err = s.server.Serve(*s.listener)
-	if err != nil && !s.closing {
-		return err
-	}
-
-	s.closing = false
-	return nil
-}
-
-func (s *server) close() error {
-	if s.listener == nil {
-		return errors.New("close called before server started")
-	}
-
-	s.closing = true
-	err := (*s.listener).Close()
+	l, err := net.Listen("tcp", makeAddr(s.port))
 	if err != nil {
 		return err
 	}
 
-	s.listener = nil
-	return nil
-}
+	// Set assigned port if necessary
+	if s.port == 0 {
+		port, err := makePort(l.Addr().String())
+		if err != nil {
+			return err
+		}
 
-func (s *server) setConnection(ws *websocket.Conn) {
-	s.connection = newConnection(ws)
-	s.connection.start()
-}
-
-func (s *server) sendReload(file string) {
-	if s.connection == nil {
-		logger.Printf("can't send request to reload %s, no connection", file)
-		return
+		s.setPort(port)
 	}
-	s.connection.reloadChan <- file
+
+	s.logStatus("listening on " + s.server.Addr)
+	return s.server.Serve(l)
 }
 
-func (s *server) sendAlert(msg string) {
-	if s.connection == nil {
-		logger.Printf("can't send request to alert \"%s\", no connection", msg)
-		return
+// Reload sends a reload message to the client
+func (s *Server) Reload(file string) {
+	s.logStatus("requesting reload: " + file)
+	for conn := range s.conns {
+		conn.reloadChan <- file
 	}
-	s.connection.alertChan <- msg
+}
+
+// Alert sends an alert message to the client
+func (s *Server) Alert(msg string) {
+	s.logStatus("requesting alert: " + msg)
+	for conn := range s.conns {
+		conn.alertChan <- msg
+	}
+}
+
+// Name gets the server name
+func (s *Server) Name() string {
+	return s.name
+}
+
+// Port gets the port that the server is listening on
+func (s *Server) Port() uint16 {
+	return s.port
+}
+
+// LiveCSS gets the live CSS preference
+func (s *Server) LiveCSS() bool {
+	return s.liveCSS
+}
+
+// StatusLog gets the server's status logger,
+// which writes to os.Stdout by default
+func (s *Server) StatusLog() *log.Logger {
+	return s.statusLog
+}
+
+// ErrorLog gets the server's error logger,
+// which writes to os.Stderr by default
+func (s *Server) ErrorLog() *log.Logger {
+	return s.server.ErrorLog
+}
+
+// SetLiveCSS sets the live CSS preference
+func (s *Server) SetLiveCSS(n bool) {
+	s.liveCSS = n
+}
+
+// SetStatusLog sets the server's status logger,
+// which can be set to nil
+func (s *Server) SetStatusLog(l *log.Logger) {
+	s.statusLog = l
+}
+
+// SetErrorLog sets the server's error logger,
+// which can be set to nil
+func (s *Server) SetErrorLog(l *log.Logger) {
+	s.server.ErrorLog = l
+}
+
+func (s *Server) setPort(port uint16) {
+	s.port = port
+	s.server.Addr = makeAddr(port)
+
+	if port != 0 {
+		s.js = fmt.Sprintf(js, s.port)
+	}
+}
+
+func (s *Server) newConn(wsConn *websocket.Conn) {
+	c := &conn{
+		conn: wsConn,
+
+		server:    s,
+		handshake: false,
+
+		reloadChan: make(chan string),
+		alertChan:  make(chan string),
+		closeChan:  make(chan closeSignal),
+	}
+	s.conns.add(c)
+	go c.start()
+}
+
+func (s *Server) logStatus(msg ...interface{}) {
+	if s.statusLog != nil {
+		s.statusLog.Println(msg...)
+	}
+}
+
+func (s *Server) logError(msg ...interface{}) {
+	if s.server.ErrorLog != nil {
+		s.server.ErrorLog.Println(msg...)
+	}
+}
+
+// makeAddr converts uint16(x) to ":x"
+func makeAddr(port uint16) string {
+	return fmt.Sprintf(":%d", port)
+}
+
+// makePort converts ":x" to uint16(x)
+func makePort(addr string) (uint16, error) {
+	_, portString, err := net.SplitHostPort(addr)
+	if err != nil {
+		return 0, err
+	}
+
+	port64, err := strconv.ParseUint(portString, 10, 16)
+	if err != nil {
+		return 0, err
+	}
+	return uint16(port64), nil
 }
