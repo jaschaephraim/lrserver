@@ -186,7 +186,7 @@ func Test(t *testing.T) {
 						So(*sr, ShouldResemble, serverReload{
 							"reload",
 							file,
-							srv.LiveCSS,
+							srv.LiveCSS(),
 						})
 					})
 

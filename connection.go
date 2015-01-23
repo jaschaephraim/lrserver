@@ -84,7 +84,7 @@ func (c *conn) transmit() {
 				c.badHandshake()
 				return
 			}
-			resp = makeServerReload(file, c.server.LiveCSS)
+			resp = makeServerReload(file, c.server.LiveCSS())
 
 		// Alert
 		case msg := <-c.alertChan:
