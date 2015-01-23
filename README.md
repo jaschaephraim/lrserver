@@ -33,9 +33,6 @@ import "github.com/jaschaephraim/lrserver"
 
 ```go
 lr, err := lrserver.New(lrserver.DefaultName, lrserver.DefaultPort)
-if err != nil {
-    // Handle error
-}
 ```
 
 ### Start Server ###
