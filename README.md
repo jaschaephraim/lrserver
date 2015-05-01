@@ -90,7 +90,10 @@ func Example() {
     }
 
     // Create and start LiveReload server
-    lr := lrserver.New(lrserver.DefaultName, lrserver.DefaultPort)
+    lr, err := lrserver.New(lrserver.DefaultName, lrserver.DefaultPort)
+    if err != nil {
+        log.Fatalln(err)
+    }
     go lr.ListenAndServe()
 
     // Start goroutine that requests reload upon watcher event
