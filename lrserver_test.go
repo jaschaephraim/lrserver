@@ -94,8 +94,8 @@ func Test(t *testing.T) {
 				}
 
 				bodyString := string(body)
-				So(bodyString, ShouldStartWith, "(function() {")
-				So(bodyString, ShouldEndWith, "})();")
+				So(bodyString, ShouldStartWith, "(function e(t,n,r)")
+				So(bodyString, ShouldEndWith, "},{}]},{},[8]);")
 			})
 
 			// Connect WebSocket
