@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/jaschaephraim/lrserver"
-	"golang.org/x/exp/fsnotify"
+	"gopkg.in/fsnotify.v1"
 )
 
 // html includes the client JavaScript
@@ -28,7 +28,7 @@ func Example() {
 	defer watcher.Close()
 
 	// Watch dir
-	err = watcher.Watch("/path/to/watched/dir")
+	err = watcher.Add("/path/to/watched/dir")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -43,8 +43,12 @@ func Example() {
 	// Start goroutine that requests reload upon watcher event
 	go func() {
 		for {
-			event := <-watcher.Event
-			lr.Reload(event.Name)
+			select {
+			case event := <-watcher.Events:
+				lr.Reload(event.Name)
+			case err := <-watcher.Errors:
+				log.Println(err)
+			}
 		}
 	}()
 
