@@ -11,16 +11,18 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Server contains a single lrserver instance's data
 type Server struct {
 	name      string
 	port      uint16
 	server    *http.Server
-	conns     connSet
+	connSet   *connSet
 	js        string
 	statusLog *log.Logger
 	liveCSS   bool
 }
 
+// New creates a new Server instance
 func New(name string, port uint16) (*Server, error) {
 	// Create router
 	router := http.NewServeMux()
@@ -34,7 +36,7 @@ func New(name string, port uint16) (*Server, error) {
 			Handler:  router,
 			ErrorLog: log.New(os.Stderr, logPrefix, 0),
 		},
-		conns:     make(connSet),
+		connSet:   &connSet{conns: make(map[*conn]struct{})},
 		statusLog: log.New(os.Stdout, logPrefix, 0),
 		liveCSS:   true,
 	}
@@ -73,7 +75,7 @@ func (s *Server) ListenAndServe() error {
 // Reload sends a reload message to the client
 func (s *Server) Reload(file string) {
 	s.logStatus("requesting reload: " + file)
-	for conn := range s.conns {
+	for conn := range s.connSet.conns {
 		conn.reloadChan <- file
 	}
 }
@@ -81,7 +83,7 @@ func (s *Server) Reload(file string) {
 // Alert sends an alert message to the client
 func (s *Server) Alert(msg string) {
 	s.logStatus("requesting alert: " + msg)
-	for conn := range s.conns {
+	for conn := range s.connSet.conns {
 		conn.alertChan <- msg
 	}
 }
@@ -150,7 +152,7 @@ func (s *Server) newConn(wsConn *websocket.Conn) {
 		alertChan:  make(chan string),
 		closeChan:  make(chan closeSignal),
 	}
-	s.conns.add(c)
+	s.connSet.add(c)
 	go c.start()
 }
 

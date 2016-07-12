@@ -138,7 +138,7 @@ func Test(t *testing.T) {
 					}
 
 					_, _, err := conn.NextReader()
-					So(reflect.TypeOf(err).String(), ShouldEqual, "*websocket.closeError")
+					So(reflect.TypeOf(err).String(), ShouldEqual, "*websocket.CloseError")
 				})
 
 				// Send valid handshake
