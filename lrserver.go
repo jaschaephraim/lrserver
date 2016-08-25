@@ -21,6 +21,10 @@ Multiple servers can be instantiated, and each can support multiple connections.
 package lrserver
 
 const (
+
+	// DefaultName is the livereload Server's default name
 	DefaultName string = "LiveReload"
+
+	// DefaultPort is the livereload Server's default server port
 	DefaultPort uint16 = 35729
 )

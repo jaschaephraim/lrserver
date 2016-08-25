@@ -3,6 +3,7 @@ package lrserver
 import (
 	"encoding/json"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -137,18 +138,25 @@ func (c *conn) close(closeCode int, closeErr error) error {
 
 	// Kill and remove connection
 	c.closeChan <- closeSignal{}
-	c.server.conns.remove(c)
+	c.server.connSet.remove(c)
 	return err
 }
 
-type connSet map[*conn]struct{}
-
-func (cs connSet) add(c *conn) {
-	cs[c] = struct{}{}
+type connSet struct {
+	conns map[*conn]struct{}
+	m     sync.Mutex
 }
 
-func (cs connSet) remove(c *conn) {
-	delete(cs, c)
+func (cs *connSet) add(c *conn) {
+	cs.m.Lock()
+	cs.conns[c] = struct{}{}
+	cs.m.Unlock()
+}
+
+func (cs *connSet) remove(c *conn) {
+	cs.m.Lock()
+	delete(cs.conns, c)
+	cs.m.Unlock()
 }
 
 type closeSignal struct{}
