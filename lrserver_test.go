@@ -71,7 +71,7 @@ func Test(t *testing.T) {
 		Convey("that is running", func() {
 			go srv.ListenAndServe()
 
-			time.Sleep(time.Nanosecond)
+			time.Sleep(time.Millisecond)
 
 			Convey("a dynamically assigned port should be updated", func() {
 				So(srv.Port(), ShouldNotEqual, 0)
@@ -138,7 +138,7 @@ func Test(t *testing.T) {
 					}
 
 					_, _, err := conn.NextReader()
-					So(reflect.TypeOf(err).String(), ShouldEqual, "*websocket.closeError")
+					So(reflect.TypeOf(err).String(), ShouldEqual, "*websocket.CloseError")
 				})
 
 				// Send valid handshake
