@@ -53,10 +53,7 @@ type serverAlert struct {
 
 func Test(t *testing.T) {
 	Convey("Given a new server", t, func() {
-		srv, err := lrserver.New(lrserver.DefaultName, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
+		srv := lrserver.New(lrserver.DefaultName, 0)
 
 		Convey("StatusLog() and ErrorLog() should return loggers", func() {
 			logger := log.New(nil, "", 0)

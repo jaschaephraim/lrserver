@@ -23,7 +23,7 @@ type Server struct {
 }
 
 // New creates a new Server instance
-func New(name string, port uint16) (*Server, error) {
+func New(name string, port uint16) *Server {
 	// Create router
 	router := http.NewServeMux()
 
@@ -48,7 +48,7 @@ func New(name string, port uint16) (*Server, error) {
 	// Handle reload requests
 	router.HandleFunc("/livereload", webSocketHandler(s))
 
-	return s, nil
+	return s
 }
 
 func (s *Server) ListenAndServe() error {
