@@ -32,14 +32,14 @@ import "github.com/jaschaephraim/lrserver"
 ### Instantiate Server ###
 
 ```go
-lr, err := lrserver.New(lrserver.DefaultName, lrserver.DefaultPort)
+lr := lrserver.New(lrserver.DefaultName, lrserver.DefaultPort)
 ```
 
 ### Start Server ###
 
 ```go
 go func() {
-    err = lr.ListenAndServe()
+    err := lr.ListenAndServe()
     if err != nil {
         // Handle error
     }
