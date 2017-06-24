@@ -119,7 +119,7 @@ func (c *conn) close(closeCode int, closeErr error) error {
 		// Attempt to set close code from error message
 		errMsgLen := len(errMsg)
 		if errMsgLen >= 21 && errMsg[:17] == "websocket: close " {
-			closeCode, err = strconv.Atoi(errMsg[17:21])
+			closeCode, _ = strconv.Atoi(errMsg[17:21])
 			if errMsgLen > 21 {
 				errMsg = errMsg[22:]
 			}
