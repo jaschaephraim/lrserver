@@ -207,7 +207,8 @@ func Test(t *testing.T) {
 
 					// Close
 					Convey("close should work", func() {
-						srv.Close()
+						err = srv.Close()
+						So(err, ShouldEqual, nil)
 
 						client := new(http.Client)
 						_, err := client.Get(
@@ -261,7 +262,8 @@ func Test(t *testing.T) {
 
 							// Shutdown
 							Convey("Shutdown should work", func() {
-								srv.Shutdown(context.Background())
+								err = srv.Shutdown(context.Background())
+								So(err, ShouldEqual, nil)
 
 								client := new(http.Client)
 								_, err := client.Get(
