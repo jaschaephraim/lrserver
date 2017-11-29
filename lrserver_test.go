@@ -1,6 +1,7 @@
 package lrserver_test
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -201,6 +202,75 @@ func Test(t *testing.T) {
 						So(*sa, ShouldResemble, serverAlert{
 							"alert",
 							msg,
+						})
+					})
+
+					// Close
+					Convey("close should work", func() {
+						err = srv.Close()
+						So(err, ShouldEqual, nil)
+
+						client := new(http.Client)
+						_, err := client.Get(
+							fmt.Sprintf("http%s:%d/livereload.js", localhost, srv.Port()),
+						)
+						So(err, ShouldNotEqual, nil)
+					})
+
+					Convey("Create another new server", func() {
+						srv := lrserver.New(lrserver.DefaultName, 0)
+
+						Convey("StatusLog() and ErrorLog() should return loggers", func() {
+							logger := log.New(nil, "", 0)
+							So(srv.StatusLog(), ShouldHaveSameTypeAs, logger)
+							So(srv.ErrorLog(), ShouldHaveSameTypeAs, logger)
+						})
+
+						srv.SetStatusLog(nil)
+						srv.SetErrorLog(nil)
+
+						// Start server
+						Convey("that is running", func() {
+							go srv.ListenAndServe()
+
+							time.Sleep(time.Millisecond)
+
+							Convey("a dynamically assigned port should be updated", func() {
+								So(srv.Port(), ShouldNotEqual, 0)
+							})
+
+							// Test JS
+							Convey("JS should be served successfully", func() {
+								client := new(http.Client)
+								resp, err := client.Get(
+									fmt.Sprintf("http%s:%d/livereload.js", localhost, srv.Port()),
+								)
+								if err != nil {
+									t.Fatal(err)
+								}
+								defer resp.Body.Close()
+
+								body, err := ioutil.ReadAll(resp.Body)
+								if err != nil {
+									t.Fatal(err)
+								}
+
+								bodyString := string(body)
+								So(bodyString, ShouldStartWith, "(function e(t,n,r)")
+								So(bodyString, ShouldEndWith, "},{}]},{},[8]);")
+							})
+
+							// Shutdown
+							Convey("Shutdown should work", func() {
+								err = srv.Shutdown(context.Background())
+								So(err, ShouldEqual, nil)
+
+								client := new(http.Client)
+								_, err := client.Get(
+									fmt.Sprintf("http%s:%d/livereload.js", localhost, srv.Port()),
+								)
+								So(err, ShouldNotEqual, nil)
+							})
 						})
 					})
 				})

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"context"
 
 	"github.com/gorilla/websocket"
 )
@@ -49,6 +50,20 @@ func New(name string, port uint16) *Server {
 	router.HandleFunc("/livereload", webSocketHandler(s))
 
 	return s
+}
+
+func (s *Server) Close() error {
+	if s.server != nil {
+		return s.server.Close()
+	}
+	return nil
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.server != nil {
+		return s.server.Shutdown(ctx)
+	}
+	return nil
 }
 
 func (s *Server) ListenAndServe() error {
