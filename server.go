@@ -3,7 +3,6 @@ package lrserver
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -152,20 +151,22 @@ func (s *Server) setPort(port uint16) {
 	s.port = port
 	s.server.Addr = makeAddr(port)
 
-	f, err := os.Open("./js/dist/livereload.min.js")
+	f, err := os.Open("./js/dist/livereload.js")
 	if err != nil {
 		fmt.Println("Open livereload.js file err, err =", err)
 		return
 	}
 	defer f.Close()
 
-	fileContent, err := ioutil.ReadAll(f)
+	var fileContent []byte
+	_, err = f.Read(fileContent)
 	if err != nil {
 		fmt.Println("Read livereload.js file err, err =", err)
 	}
 	if port != 0 {
 		s.js = fmt.Sprintf(string(fileContent), s.port)
 	}
+	fmt.Println(s.js)
 }
 
 func (s *Server) newConn(wsConn *websocket.Conn) {
