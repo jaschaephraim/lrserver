@@ -1,10 +1,9 @@
-module lrserver
+module github.com/jaschaephraim/lrserver
 
 go 1.19
 
 require (
 	github.com/gorilla/websocket v1.5.0
-	github.com/jaschaephraim/lrserver v0.0.0-20171129202958-50d19f603f71
 	github.com/smartystreets/goconvey v1.7.2
 	gopkg.in/fsnotify.v1 v1.4.7
 )
