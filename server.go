@@ -160,9 +160,10 @@ func (s *Server) setPort(port uint16) {
 	s.server.Addr = makeAddr(port)
 
 	if port != 0 {
-		s.js = fmt.Sprintf(Js, s.port)
+		// Why??
+		// s.js = fmt.Sprintf(Js, s.port)
+		s.js = Js
 	}
-	fmt.Println(s.js)
 }
 
 func (s *Server) newConn(wsConn *websocket.Conn) {
