@@ -3,7 +3,7 @@ package lrserver_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"reflect"
@@ -86,7 +86,7 @@ func Test(t *testing.T) {
 				}
 				defer resp.Body.Close()
 
-				body, err := ioutil.ReadAll(resp.Body)
+				body, err := io.ReadAll(resp.Body)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -250,7 +250,7 @@ func Test(t *testing.T) {
 								}
 								defer resp.Body.Close()
 
-								body, err := ioutil.ReadAll(resp.Body)
+								body, err := io.ReadAll(resp.Body)
 								if err != nil {
 									t.Fatal(err)
 								}
