@@ -1,13 +1,15 @@
 package lrserver
 
 import (
+	"context"
+	_ "embed"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
-	"context"
+	"strings"
 
 	"github.com/gorilla/websocket"
 )
@@ -22,6 +24,12 @@ type Server struct {
 	statusLog *log.Logger
 	liveCSS   bool
 }
+
+var (
+	Js string = strings.TrimSpace(js)
+	//go:embed js/dist/livereload.min.js
+	js string
+)
 
 // New creates a new Server instance
 func New(name string, port uint16) *Server {
@@ -152,7 +160,9 @@ func (s *Server) setPort(port uint16) {
 	s.server.Addr = makeAddr(port)
 
 	if port != 0 {
-		s.js = fmt.Sprintf(js, s.port)
+		// Why??
+		// s.js = fmt.Sprintf(Js, s.port)
+		s.js = Js
 	}
 }
 
