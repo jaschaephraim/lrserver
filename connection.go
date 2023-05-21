@@ -104,6 +104,10 @@ func (c *conn) transmit() {
 	}
 }
 
+func (c *conn) IsConnected() bool {
+	return c.handshake
+}
+
 func (c *conn) badHandshake() {
 	c.close(websocket.ClosePolicyViolation, websocket.ErrBadHandshake)
 }
@@ -157,6 +161,15 @@ func (cs *connSet) remove(c *conn) {
 	cs.m.Lock()
 	delete(cs.conns, c)
 	cs.m.Unlock()
+}
+
+func (cs *connSet) IsConnected() bool {
+	for c := range cs.conns {
+		if c.IsConnected() {
+			return true
+		}
+	}
+	return false
 }
 
 type closeSignal struct{}

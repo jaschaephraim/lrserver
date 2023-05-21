@@ -1,13 +1,13 @@
 package lrserver
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
-	"context"
 
 	"github.com/gorilla/websocket"
 )
@@ -152,7 +152,7 @@ func (s *Server) setPort(port uint16) {
 	s.server.Addr = makeAddr(port)
 
 	if port != 0 {
-		s.js = fmt.Sprintf(js, s.port)
+		s.js = fmt.Sprintf("http://localhost:%d/livereload.js", s.port)
 	}
 }
 
@@ -181,6 +181,14 @@ func (s *Server) logError(msg ...interface{}) {
 	if s.server.ErrorLog != nil {
 		s.server.ErrorLog.Println(msg...)
 	}
+}
+func (s *Server) IsConnected() bool {
+	for c := range s.connSet.conns {
+		if c.IsConnected() {
+			return true
+		}
+	}
+	return false
 }
 
 // makeAddr converts uint16(x) to ":x"
