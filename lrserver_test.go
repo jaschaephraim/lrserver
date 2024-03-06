@@ -92,8 +92,7 @@ func Test(t *testing.T) {
 				}
 
 				bodyString := string(body)
-				So(bodyString, ShouldStartWith, "!function e(t,r,o)")
-				So(bodyString, ShouldEndWith, "}]},{},[110]);")
+				So(bodyString, ShouldEqual, lrserver.JS)
 			})
 
 			// Connect WebSocket
@@ -266,8 +265,7 @@ func Test(t *testing.T) {
 								}
 
 								bodyString := string(body)
-								So(bodyString, ShouldStartWith, "!function e(t,r,o)")
-								So(bodyString, ShouldEndWith, "}]},{},[110]);")
+								So(bodyString, ShouldEqual, lrserver.JS)
 							})
 
 							// Shutdown

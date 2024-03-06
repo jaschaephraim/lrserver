@@ -14,7 +14,7 @@ import (
 )
 
 //go:embed livereload_v4.0.2/livereload.min.js
-var js string
+var JS string
 
 // Server contains a single lrserver instance's data
 type Server struct {
