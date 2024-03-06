@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//go:embed livereload/livereload.min.js
+//go:embed livereload_v4.0.2/livereload.min.js
 var js string
 
 // Server contains a single lrserver instance's data
@@ -114,6 +114,15 @@ func (s *Server) Name() string {
 // Port gets the port that the server is listening on
 func (s *Server) Port() uint16 {
 	return s.port
+}
+
+func (s *Server) IsConnected() bool {
+	for conn := range s.connSet.conns {
+		if conn.handshake {
+			return true
+		}
+	}
+	return false
 }
 
 // LiveCSS gets the live CSS preference

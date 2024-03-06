@@ -128,6 +128,11 @@ func Test(t *testing.T) {
 					srv.Name(),
 				})
 
+				Convey("an unconnected server should be detected", func() {
+					isConnected := srv.IsConnected()
+					So(isConnected, ShouldBeFalse)
+				})
+
 				// Test bad handshake
 				Convey("an invalid handshake should close the connection", func() {
 					err = conn.WriteJSON(randomMessage)
@@ -147,6 +152,11 @@ func Test(t *testing.T) {
 					}
 
 					time.Sleep(time.Millisecond)
+
+					Convey("a connected server should be detected", func() {
+						isConnected := srv.IsConnected()
+						So(isConnected, ShouldBeTrue)
+					})
 
 					Convey("a valid client message should be tolerated", func() {
 						err = conn.WriteJSON(randomMessage)
