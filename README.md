@@ -60,8 +60,8 @@ import (
     "log"
     "net/http"
 
-    "github.com/jaschaephraim/lrserver"
-    "gopkg.in/fsnotify.v1"
+	"github.com/fsnotify/fsnotify"
+	"github.com/jaschaephraim/lrserver"
 )
 
 // html includes the client JavaScript

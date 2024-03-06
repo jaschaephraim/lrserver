@@ -3,9 +3,9 @@ module github.com/jaschaephraim/lrserver
 go 1.22.0
 
 require (
+	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gorilla/websocket v1.5.1
 	github.com/smartystreets/goconvey v1.8.1
-	gopkg.in/fsnotify.v1 v1.4.7
 )
 
 require (

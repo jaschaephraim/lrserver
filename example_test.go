@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/jaschaephraim/lrserver"
-	"gopkg.in/fsnotify.v1"
 )
 
 // html includes the client JavaScript
