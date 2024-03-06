@@ -9,7 +9,7 @@ import (
 func jsHandler(s *Server) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("Content-Type", "application/javascript")
-		_, err := rw.Write([]byte(s.js))
+		_, err := rw.Write([]byte(js))
 		if err != nil {
 			s.logError(err)
 		}
